@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "tiffwrapper"
+dependencies = [
+    "tifffile",
+    "matplotlib",
+    "numpy",
+    "scipy"
+]
+requires-python = ">=3.8"
+authors = [
+    {name = "Anthony Bilodeau"},
+    {name = "Andréanne Deschênes"},
+]
+maintainers = [
+    {name = "Anthony Bilodeau"},
+    {name = "Andréanne Deschênes"},    
+]
+description = "A simple wrapper around the tifffile library to make it easier to work with TIFF files."
+readme = "README.md"
+license = { file = "LICENSE" }
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "tiffwrapper.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
