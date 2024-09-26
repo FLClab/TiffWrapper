@@ -73,6 +73,7 @@ class LifetimeOverlayer:
 
         lifetime_rgb = colors.hsv_to_rgb(lifetime_hsv)
         return lifetime_rgb, cmap
+    
     def get_overlay_RGB(self, lifetime_minmax=(0., 5.), intensity_minmax=(0., 1.)):
         """
         Computes the lifetime overlay for a 3 channel image (R,G,B)
@@ -99,8 +100,6 @@ class LifetimeOverlayer:
         
         lifetime_rgb =numpy.dstack((red,green,blue))
         lifetime_rgb=numpy.where(lifetime_rgb>1, 1,lifetime_rgb)
-        print(lifetime_rgb.shape)
-       
 
         # Convert to hsv and applies intensity mapping
         lifetime_hsv = colors.rgb_to_hsv(lifetime_rgb)
@@ -108,6 +107,7 @@ class LifetimeOverlayer:
 
         lifetime_rgb = colors.hsv_to_rgb(lifetime_hsv)
         return lifetime_rgb
+    
     def verify_intensity(self, intensity):
         """
         Ensures that the intensity minimum value is 0.
