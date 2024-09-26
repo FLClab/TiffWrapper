@@ -76,7 +76,9 @@ class LifetimeOverlayer:
     
     def get_overlay_RGB(self, lifetime_minmax=(0., 5.), intensity_minmax=(0., 1.)):
         """
-        Computes the lifetime overlay for a 3 channel image (R,G,B)
+        Computes the fraction map overlay on the instensity. 
+        Fraction map given as
+        :param self.lifetime : 3 channel image (R,G,B) where each channel is the fraction of the lifetime in the corresponding channel
 
         :param lifetime_minmax: A `tuple` of the lifetime minimum and maximum
         :param intensity_minmax: A `tuple` of the intensity minimum and maxium
