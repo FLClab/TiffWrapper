@@ -1,1 +1,3 @@
+include pyproject.toml
+include MANIFEST.in
 include tiffwrapper/LUTs/*.lut
