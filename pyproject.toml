@@ -31,4 +31,4 @@ include-package-data = true
 version = {attr = "tiffwrapper.__version__"}
 
 [tool.setuptools.packages.find]
-where = ["tiffwrapper"]
+where = ["."]
