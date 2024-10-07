@@ -1,1 +1,1 @@
-include tifffile/LUTs/*.lut
+include tiffwrapper/LUTs/*.lut
