@@ -35,9 +35,17 @@ class ColorMapper(object):
         table associated to the look up table name
 
         :param lut_name: A `string` of the look up table name
+                         OR A `tuple` of the RGB values
+                         OR A `string` of the HEX value
 
         :returns : A `numpy.ndarray` with shape (3, 256) of the look up table
         """
+        # We allow the user to specify the colormap as a HEX string or a RGB tuple
+        if (isinstance(lut_name, str) and lut_name.startswith("#")) or (isinstance(lut_name, tuple)) :
+            cmap = matplotlib.colors.LinearSegmentedColormap.from_list("custom", ["black", lut_name], N=2**8)
+            lut = (cmap(numpy.arange(2 ** 8))[:, :3].T * self.val_range.max()).astype(self._dtype)
+            return lut
+        
         assert (lut_name in self.PYPLOT_CMAPS) or (lut_name in self.USER_CMAPS) or (lut_name in self.FIJI_CMAPS),  "The specified colormap `{}` is not supported. ".format(lut_name) + \
                 "We modifed it to be grey. Here's the list of supported look up tables.\n" + \
                 "pyplot colormaps : {}\nuser colormaps : {}\nFIJI colormaps : {}".format(self.PYPLOT_CMAPS, self.USER_CMAPS, self.FIJI_CMAPS)

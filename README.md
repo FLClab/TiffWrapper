@@ -58,3 +58,25 @@ file = "./single-channel.tif"
 tiffwrapper.imwrite(file=file, data=data, luts="Cyan Hot", ranges=[0, 5])
 # imwrite(file=file, data=data, luts=["Cyan Hot"], ranges=[(0, 5)])
 ```
+
+### Image and masks
+
+`tiffwrapper` also provides ways to combine and image with a mask (possibly multi-channel).
+
+```python
+cmaps = [
+    "#ff0000", (1.0, 1.0, 0.0)
+]
+imwrite("composite.tif", mask, composite=True, luts=cmaps, ranges=[(0, 1) for _ in range(mask.shape[0])])
+```
+
+Optionally, when the number of masks is large (>8, FIji only allows for 8 channels in composite) it is possible to directly generate the composite image from the masks and an input image.
+
+```python
+stack = numpy.concatenate([image, mask], axis=0)
+cmaps = ["gray"] + cmaps
+ranges = [(image.min(), numpy.quantile(image, 0.99))] + [(0, 1.0) for _ in range(mask.shape[0])]
+composite = make_composite(stack, luts=cmaps, ranges=ranges)
+
+tifffile.imwrite("composite-rgb.tif", composite)
+```
