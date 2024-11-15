@@ -59,6 +59,15 @@ tiffwrapper.imwrite(file=file, data=data, luts="Cyan Hot", ranges=[0, 5])
 # imwrite(file=file, data=data, luts=["Cyan Hot"], ranges=[(0, 5)])
 ```
 
+### N-dimensional data
+
+`tiffwrapper` also supports handling n-dimensional data with the `imwrite` function. The function will automatically handle the data and write it to a tiff file. Optionally, the function can take as input an `axes` parameters specifying the order of the axes in the data. The `axes` parameter is a string with the following characters: `T` (time), `Z` (z), `C` (channel), `Y` (x), `Y` (y). The default value is `TZCYX`. When specifying the `axes` parameter, the `data` parameter should be a numpy array with the same number of dimensions as the `axes` parameter. The order of the `axes` parameter can be any permutation of the default value.
+
+```python
+data = numpy.random.rand(10, 5, 2, 256, 256)
+imwrite("ndim.tif", data, luts=["red Hot", "Cyan Hot"], ranges=[(0, 1), (0, 0.5)], axes="TZCYX")
+```
+
 ### Image and masks
 
 `tiffwrapper` also provides ways to combine and image with a mask (possibly multi-channel).
@@ -70,7 +79,7 @@ cmaps = [
 imwrite("composite.tif", mask, composite=True, luts=cmaps, ranges=[(0, 1) for _ in range(mask.shape[0])])
 ```
 
-Optionally, when the number of masks is large (>8, FIji only allows for 8 channels in composite) it is possible to directly generate the composite image from the masks and an input image.
+Optionally, when the number of masks is large (>8, Fiji only allows for 8 channels in composite) it is possible to directly generate the composite image from the masks and an input image.
 
 ```python
 stack = numpy.concatenate([image, mask], axis=0)

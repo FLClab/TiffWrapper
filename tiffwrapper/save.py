@@ -7,9 +7,10 @@ from matplotlib import pyplot
 from collections.abc import Iterable
 
 from tiffwrapper.luts import FijiLUTsConverter, ColorMapper
+from tiffwrapper.utils import get_default_metadata, reorder_axes
 
 def imwrite(file, data, composite=False, luts=None, ranges=None,
-            metadata={}, *args, **kwargs):
+            metadata=None, *args, **kwargs):
     """
     Wraps arround the imwrite function of tifffile
 
@@ -24,16 +25,25 @@ def imwrite(file, data, composite=False, luts=None, ranges=None,
 
     Optional kwargs
     :param resolution: A `float` (or `tuple`) of the pixel size of the image in microns
+    :param axes: A `str` of the axes of the data
     """
     # Verifies the data type
     assert data.dtype in [numpy.uint8, numpy.uint16, numpy.float32], "ImageJ does not support {} data type. ".format(data.dtype) + \
             "Here's the list of accepted data type : {}".format([numpy.uint8, numpy.uint16, numpy.float32])
 
-    # Case of single channel image
+    metadata, extratags = get_default_metadata(data, metadata, kwargs)
+    func = get_multi_channel
     if (data.ndim == 2) or (data.shape[0] == 1):
-        metadata, extratags = get_single_channel(data, luts, ranges)
-    else:
-        metadata, extratags = get_multi_channel(data, composite, luts, ranges)
+        func = get_single_channel
+    metadata, extratags = func(
+        data=data, 
+        metadata=metadata, 
+        extratags=extratags, 
+        composite=composite, 
+        luts=luts,
+        ranges=ranges,
+        *args, **kwargs
+    )
 
     # Verifies wheter a pixelsize was given
     pixelsize = kwargs.pop("pixelsize", None)
@@ -48,21 +58,26 @@ def imwrite(file, data, composite=False, luts=None, ranges=None,
     else:
         resolution = (1, ) * 2
 
+    # makes sure the data is valid for ImageJ
+    data = reorder_axes(data, metadata)
+
     # Saves the image to file
     tifffile.imwrite(file, data=data, imagej=True, resolution=resolution, metadata=metadata, extratags=extratags, *args, **kwargs)
 
-def get_single_channel(data, luts, ranges):
+def get_single_channel(data, metadata, extratags, luts, ranges, *args, **kwargs):
     """
     Creates the metadata and extratags required to save a single channel image
     in ImageJ that displays as expected
 
+    :param data: A `numpy.ndarray` of data
+    :param metadata: A `dict` of metadata
+    :param extratags: A `dict` of extratags
     :param luts: A `list` of lookup table names
     :param ranges: A `list` of `tuple` of display range [(min, max)]
 
     :returns : A `dict` of metadata
                A `dict` of extratags
     """
-    metadata, extratags = {}, []
 
     # Handles min/max displayed values
     if isinstance(ranges, (tuple, list)):
@@ -80,35 +95,38 @@ def get_single_channel(data, luts, ranges):
         ]
     return metadata, extratags
 
-def get_multi_channel(data, composite, luts, ranges):
+def get_multi_channel(data, metadata, extratags, composite, luts, ranges, *args, **kwargs):
     """
     Creates the metadata and extratags required to save a multi channel image
     in ImageJ that displays as expected
 
-    :param composite: A `bool` wheter the image should be a composite
+    :param data: A `numpy.ndarray` of data
+    :param metadata: A `dict` of metadata
+    :param extratags: A `dict` of extratags
+    :param composite: A `bool` to indicate if the image is a composite
     :param luts: A `list` of lookup table names
     :param ranges: A `list` of `tuple` of display range [(min, max)]
 
     :returns : A `dict` of metadata
                A `dict` of extratags
     """
-    metadata, extratags = {}, []
 
     # If composite adds the mode to the metadata
     if composite:
         metadata["mode"] = "composite"
 
     # Creates the LUTs in metadata
+    channel_axis = metadata["axes"].index("C")
     if isinstance(luts, (list, tuple)):
-        assert len(luts) == data.shape[0], "Shape mismatch between number of channels ({}) and number of luts ({})".format(len(data), len(luts))
+        assert len(luts) == data.shape[channel_axis], "Shape mismatch between number of channels ({}) and number of luts ({})".format(len(data), len(luts))
         colormapper = ColorMapper()
         metadata["LUTs"] = [colormapper[lut] for lut in luts]
 
     # Creates the Ranges in metadata
     if isinstance(ranges, (list, tuple)):
         if len(ranges) == 1:
-            ranges = [ranges[0] for _ in range(data.shape[0])]
-        assert len(ranges) == data.shape[0], "Shape mismatch between number of channels ({}) and number of ranges ({})".format(len(data), len(ranges))
+            ranges = [ranges[0] for _ in range(data.shape[channel_axis])]
+        assert len(ranges) == data.shape[channel_axis], "Shape mismatch between number of channels ({}) and number of ranges ({})".format(len(data), len(ranges))
         metadata["Ranges"] = [flatten(ranges)]
     return metadata, extratags
 
@@ -130,49 +148,6 @@ def flatten(mappable):
             flattened.append(element)
     return flattened
 
-def make_composite(ary, luts, ranges=None):
-    """
-    Makes a composite from a `numpy.ndarray` using the luts
-
-    :param ary: A 3D `numpy.ndarray`
-    :param luts: A list of look up tables
-    :param ranges: The dynamic range of the image
-
-    :returns : A 3D `numpy.nadrray` with shape (H, W, C)
-    """
-    cmapper = ColorMapper() # Creation of the ColorMapper instance
-    if isinstance(ranges, (type(None))): # Creates drange if not given
-        ranges = [(m, M) for m, M in zip(ary.min(axis=(-2, -1)), ary.max(axis=(-2, -1)))]
-    else:
-        assert len(ranges) == len(ary), "drange should be the same length as img.shape[0]"
-
-    # Scales intensity according to drange
-    ary = scale_intensity(ary, ranges) * 255
-    ary = ary.astype(numpy.uint8)
-
-    layers = []
-    for arr, lut in zip(ary, luts):
-        layer = cmapper[lut].T[arr]
-        layers.append(layer)
-    return numpy.clip(numpy.sum(layers, axis=0), 0, 255).astype(numpy.uint8)
-
-def scale_intensity(image, ranges):
-    """
-    Scales intensity of an image
-
-    :param image: A `numpy.ndarray` of image data
-    :param ranges: A `list` of (min, max) value to scale the image to
-
-    :returns : A `numpy.ndarray` of the rescaled intensity in range [0, 1]
-    """
-    ranges = numpy.array(ranges)
-
-    m, M = ranges.T
-    if numpy.all(m == M):
-        return image / (M[:, numpy.newaxis, numpy.newaxis] + 1e-6)
-    scaled = (image - m[:, numpy.newaxis, numpy.newaxis]) / (M - m)[:, numpy.newaxis, numpy.newaxis]
-    return numpy.clip(scaled, 0, 1)
-
 if __name__ == "__main__":
 
     from skimage import filters
@@ -180,7 +155,7 @@ if __name__ == "__main__":
     numpy.random.seed(42)
 
     # Multi Channel Image
-    data = numpy.random.rand(1, 256, 256)
+    data = numpy.random.rand(25, 10, 3, 256, 256)
     data[data < 0.99] = 0
     for i in range(data.shape[0]):
         data[i] = filters.gaussian(data[i], 4)
@@ -190,10 +165,11 @@ if __name__ == "__main__":
     composite = make_composite(data, luts=["magma"], ranges=ranges)
     tifffile.imwrite("./composite.tif", composite.astype(numpy.uint8))
 
+    # multi-channel
     ranges = [(0, 5), (0, 10), (0, 3)]
     file = "./multi-channel.tif"
     imwrite(file=file, data=data, composite=True, luts=["cyan", "Green Hot", "Red Hot"], ranges=ranges,
-            pixelsize=20e-3)
+            pixelsize=20e-3, axes="TZCYX")
 
     # Single channel
     data = data[0]

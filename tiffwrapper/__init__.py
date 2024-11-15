@@ -1,6 +1,6 @@
 from .luts import ColorMapper
 from .save import imwrite, imsave
-from .save import make_composite
+from .utils import make_composite
 
 from .flim import LifetimeOverlayer
 
