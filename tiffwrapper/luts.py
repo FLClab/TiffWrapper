@@ -3,6 +3,7 @@ import numpy
 import os
 import glob
 import matplotlib
+import Levenshtein
 
 from matplotlib import pyplot
 
@@ -46,9 +47,15 @@ class ColorMapper(object):
             lut = (cmap(numpy.arange(2 ** 8))[:, :3].T * self.val_range.max()).astype(self._dtype)
             return lut
         
-        assert (lut_name in self.PYPLOT_CMAPS) or (lut_name in self.USER_CMAPS) or (lut_name in self.FIJI_CMAPS),  "The specified colormap `{}` is not supported. ".format(lut_name) + \
-                "We modifed it to be grey. Here's the list of supported look up tables.\n" + \
-                "pyplot colormaps : {}\nuser colormaps : {}\nFIJI colormaps : {}".format(self.PYPLOT_CMAPS, self.USER_CMAPS, self.FIJI_CMAPS)
+        if lut_name not in self.PYPLOT_CMAPS and lut_name not in self.USER_CMAPS and lut_name not in self.FIJI_CMAPS:
+            # Find the closest match in the available colormaps
+            closest_matches = list(sorted(self.PYPLOT_CMAPS + self.USER_CMAPS + list(self.FIJI_CMAPS.keys()), key=lambda x: Levenshtein.distance(lut_name, x)))
+            top_matches = ["'{}'".format(match) for match in closest_matches[:5]]
+            raise ValueError(f"'{lut_name}' is not a valid colormap. Did you mean one of these? [{', '.join(top_matches)}]")
+        # assert (lut_name in self.PYPLOT_CMAPS) or (lut_name in self.USER_CMAPS) or (lut_name in self.FIJI_CMAPS),  "The specified colormap `{}` is not supported. ".format(lut_name) + \
+        #         "We modifed it to be grey. Here's the list of supported look up tables.\n" + \
+        #         "pyplot colormaps : {}\nuser colormaps : {}\nFIJI colormaps : {}".format(self.PYPLOT_CMAPS, self.USER_CMAPS, self.FIJI_CMAPS)
+
         if lut_name in self.FIJI_CMAPS:
             lut_name = self.FIJI_CMAPS[lut_name]
             lut = FijiLUTsConverter(self._dtype, self._dtype_max + 1).get_cmap(lut_name)
